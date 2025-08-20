@@ -1,14 +1,29 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Mini App TON — DEMO</title>
 
-  <!-- Telegram Mini Apps (ok abrir fora do Telegram também) -->
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <!-- TON Connect UI (versão fixa que você já usou em outro projeto) -->
-  <script src="https://unpkg.com/@tonconnect/ui@2.0.9/dist/tonconnect-ui.min.js"></script>
+  <!-- DIAGNÓSTICO: mostra qualquer erro de JS na própria página -->
+  <script>
+    window.addEventListener('error', e => {
+      const box = document.getElementById('diag') || document.body.appendChild(Object.assign(document.createElement('pre'), {id:'diag'}));
+      box.style.whiteSpace='pre-wrap'; box.style.background='#fff3cd'; box.style.border='1px solid #ffeeba'; box.style.padding='12px';
+      box.textContent = 'Erro: ' + (e.message || e.error);
+    });
+    window.addEventListener('unhandledrejection', e => {
+      const box = document.getElementById('diag') || document.body.appendChild(Object.assign(document.createElement('pre'), {id:'diag'}));
+      box.style.whiteSpace='pre-wrap'; box.style.background='#fff3cd'; box.style.border='1px solid #ffeeba'; box.style.padding='12px';
+      box.textContent = 'Promise rejeitada: ' + (e.reason && (e.reason.message || e.reason)) ;
+    });
+  </script>
+
+  <!-- Telegram Mini Apps (opcional; ignora fora do Telegram) -->
+  <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <!-- TON Connect UI (versão estável que você já usou) -->
+  <script defer src="https://unpkg.com/@tonconnect/ui@2.0.9/dist/tonconnect-ui.min.js"></script>
 
   <style>
     body{font-family:system-ui,Arial,sans-serif;padding:16px;max-width:720px;margin:auto}
@@ -48,54 +63,66 @@
   </div>
 
   <script>
-    // Inicializa ambiente do Telegram (ignora se fora do app)
-    try { Telegram.WebApp.ready(); Telegram.WebApp.expand(); } catch (e) {}
+    // Inicializa Telegram (se existir) sem quebrar fora do app
+    window.addEventListener('DOMContentLoaded', () => {
+      try { if (window.Telegram && Telegram.WebApp){ Telegram.WebApp.ready(); Telegram.WebApp.expand(); } } catch(e){}
 
-    // 🔧 Resolve o manifesto para o SUBDIRETÓRIO correto do GitHub Pages
-    // Ex.: https://kiomamaeoka.github.io/maeoka-miniapp-demo/tonconnect-manifest.json
-    const MANIFEST_URL = new URL('tonconnect-manifest.json', window.location.href).href;
+      // Resolve URL ABSOLUTA do manifesto respeitando o subdiretório do GitHub Pages
+      // Resultado esperado: https://kiomamaeoka.github.io/maeoka-miniapp-demo/tonconnect-manifest.json
+      const MANIFEST_URL = new URL('tonconnect-manifest.json', window.location.href).href;
 
-    const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
-      manifestUrl: MANIFEST_URL,
-      buttonRootId: 'ton-connect'
-    });
+      // Checagem extra: mostra um aviso se o manifesto não existir
+      fetch(MANIFEST_URL, {cache:'no-store'})
+        .then(r => { if(!r.ok) throw new Error('Manifesto não encontrado em ' + MANIFEST_URL); })
+        .catch(err => { const d=document.getElementById('diag')||document.body.appendChild(document.createElement('pre')); d.id='diag'; d.textContent=err.message; });
 
-    const statusEl = document.getElementById('status');
-    const mockBtn  = document.getElementById('mock');
-    const out      = document.getElementById('out');
-
-    function short(a){ return a ? a.slice(0,6)+'…'+a.slice(-4) : ''; }
-
-    function refresh(){
-      const acc = tonConnectUI.account;
-      if (acc && acc.address){
-        statusEl.textContent = 'Status: conectado ('+ short(acc.address) +')';
-        mockBtn.disabled = false;
-      } else {
-        statusEl.textContent = 'Status: desconectado';
-        mockBtn.disabled = true;
-        out.textContent = '';
+      if (!window.TON_CONNECT_UI){
+        const d=document.getElementById('diag')||document.body.appendChild(document.createElement('pre'));
+        d.id='diag'; d.textContent='Biblioteca TON_CONNECT_UI não carregou.';
+        return;
       }
-    }
 
-    tonConnectUI.onStatusChange(refresh);
-    refresh();
+      const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+        manifestUrl: MANIFEST_URL,
+        buttonRootId: 'ton-connect'
+      });
 
-    document.getElementById('mock').onclick = () => {
-      const acc = tonConnectUI.account;
-      if (!acc){ alert('Conecte a carteira primeiro.'); return; }
+      const statusEl = document.getElementById('status');
+      const mockBtn  = document.getElementById('mock');
+      const out      = document.getElementById('out');
 
-      const data = {
-        id: 'NFT-' + Math.random().toString(36).slice(2,8).toUpperCase(),
-        owner: acc.address,
-        project: document.getElementById('project').value || 'Residencial DEMO',
-        ownership_percentage: parseFloat(document.getElementById('percent').value || '0'),
-        initial_investment_brl: parseFloat(document.getElementById('amount').value || '0'),
-        created_at: new Date().toISOString(),
-        note: 'PREVIEW LOCAL — não gravado na blockchain'
+      const short = a => a ? a.slice(0,6)+'…'+a.slice(-4) : '';
+
+      const refresh = () => {
+        const acc = tonConnectUI.account;
+        if (acc && acc.address){
+          statusEl.textContent = 'Status: conectado ('+ short(acc.address) +')';
+          mockBtn.disabled = false;
+        } else {
+          statusEl.textContent = 'Status: desconectado';
+          mockBtn.disabled = true;
+          out.textContent = '';
+        }
       };
-      out.textContent = JSON.stringify(data, null, 2);
-    };
+
+      tonConnectUI.onStatusChange(refresh);
+      refresh();
+
+      mockBtn.onclick = () => {
+        const acc = tonConnectUI.account;
+        if (!acc){ alert('Conecte a carteira primeiro.'); return; }
+        const data = {
+          id: 'NFT-' + Math.random().toString(36).slice(2,8).toUpperCase(),
+          owner: acc.address,
+          project: document.getElementById('project').value || 'Residencial DEMO',
+          ownership_percentage: parseFloat(document.getElementById('percent').value || '0'),
+          initial_investment_brl: parseFloat(document.getElementById('amount').value || '0'),
+          created_at: new Date().toISOString(),
+          note: 'PREVIEW LOCAL — não gravado na blockchain'
+        };
+        out.textContent = JSON.stringify(data, null, 2);
+      };
+    });
   </script>
 </body>
 </html>
