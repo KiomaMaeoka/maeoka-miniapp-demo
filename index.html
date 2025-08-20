@@ -1,44 +1,101 @@
-<script>
-  try { Telegram.WebApp.ready(); Telegram.WebApp.expand(); } catch (e) {}
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Mini App TON — DEMO</title>
 
-  const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
-    manifestUrl: 'https://kiomamaeoka.github.io/maeoka-miniapp-demo/tonconnect-manifest.json',
-    buttonRootId: 'ton-connect'
-  });
+  <!-- Telegram Mini Apps (ok abrir fora do Telegram também) -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- TON Connect UI (versão fixa que você já usou em outro projeto) -->
+  <script src="https://unpkg.com/@tonconnect/ui@2.0.9/dist/tonconnect-ui.min.js"></script>
 
-  const statusEl = document.getElementById('status');
-  const mockBtn  = document.getElementById('mock');
-  const out      = document.getElementById('out');
+  <style>
+    body{font-family:system-ui,Arial,sans-serif;padding:16px;max-width:720px;margin:auto}
+    h1{margin:0 0 6px 0}
+    small{color:#666}
+    .box{border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin:14px 0}
+    label{display:inline-block;margin:6px 10px 6px 0}
+    input{padding:6px 8px;border:1px solid #d1d5db;border-radius:8px}
+    button{padding:8px 12px;border-radius:8px;border:1px solid #111827;background:#111827;color:#fff;cursor:pointer}
+    button:disabled{opacity:.6;cursor:not-allowed}
+    pre{background:#f7f7f7;border:1px solid #eee;border-radius:8px;padding:10px;overflow:auto}
+  </style>
+</head>
+<body>
+  <h1>Mini App TON — DEMO</h1>
+  <small>Protótipo educativo. Nada é gravado na blockchain.</small>
 
-  function short(a){ return a ? a.slice(0,6)+'…'+a.slice(-4) : ''; }
+  <div class="box">
+    <h3>1) Conectar carteira</h3>
+    <div id="ton-connect"></div>
+    <div id="status">Status: desconectado</div>
+  </div>
 
-  function refresh(){
-    const acc = tonConnectUI.account;
-    if (acc && acc.address){
-      statusEl.textContent = 'Status: conectado ('+ short(acc.address) +')';
-      mockBtn.disabled = false;
-    } else {
-      statusEl.textContent = 'Status: desconectado';
-      mockBtn.disabled = true;
-      out.textContent = '';
+  <div class="box">
+    <h3>2) Simular “mint” (off-chain)</h3>
+    <label>Projeto:
+      <input id="project" value="Residencial DEMO">
+    </label>
+    <label>% participação:
+      <input id="percent" type="number" step="0.01" value="0.50">
+    </label>
+    <label>Valor (R$):
+      <input id="amount" type="number" step="100" value="1000">
+    </label>
+    <button id="mock" disabled>Gerar NFT (mock)</button>
+    <pre id="out"></pre>
+  </div>
+
+  <script>
+    // Inicializa ambiente do Telegram (ignora se fora do app)
+    try { Telegram.WebApp.ready(); Telegram.WebApp.expand(); } catch (e) {}
+
+    // 🔧 Resolve o manifesto para o SUBDIRETÓRIO correto do GitHub Pages
+    // Ex.: https://kiomamaeoka.github.io/maeoka-miniapp-demo/tonconnect-manifest.json
+    const MANIFEST_URL = new URL('tonconnect-manifest.json', window.location.href).href;
+
+    const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+      manifestUrl: MANIFEST_URL,
+      buttonRootId: 'ton-connect'
+    });
+
+    const statusEl = document.getElementById('status');
+    const mockBtn  = document.getElementById('mock');
+    const out      = document.getElementById('out');
+
+    function short(a){ return a ? a.slice(0,6)+'…'+a.slice(-4) : ''; }
+
+    function refresh(){
+      const acc = tonConnectUI.account;
+      if (acc && acc.address){
+        statusEl.textContent = 'Status: conectado ('+ short(acc.address) +')';
+        mockBtn.disabled = false;
+      } else {
+        statusEl.textContent = 'Status: desconectado';
+        mockBtn.disabled = true;
+        out.textContent = '';
+      }
     }
-  }
 
-  tonConnectUI.onStatusChange(refresh);
-  refresh();
+    tonConnectUI.onStatusChange(refresh);
+    refresh();
 
-  document.getElementById('mock').onclick = () => {
-    const acc = tonConnectUI.account;
-    if (!acc){ alert('Conecte a carteira primeiro.'); return; }
-    const data = {
-      id: 'NFT-' + Math.random().toString(36).slice(2,8).toUpperCase(),
-      owner: acc.address,
-      project: document.getElementById('project').value || 'Residencial DEMO',
-      ownership_percentage: parseFloat(document.getElementById('percent').value || '0'),
-      initial_investment_brl: parseFloat(document.getElementById('amount').value || '0'),
-      created_at: new Date().toISOString(),
-      note: 'PREVIEW LOCAL — não gravado na blockchain'
+    document.getElementById('mock').onclick = () => {
+      const acc = tonConnectUI.account;
+      if (!acc){ alert('Conecte a carteira primeiro.'); return; }
+
+      const data = {
+        id: 'NFT-' + Math.random().toString(36).slice(2,8).toUpperCase(),
+        owner: acc.address,
+        project: document.getElementById('project').value || 'Residencial DEMO',
+        ownership_percentage: parseFloat(document.getElementById('percent').value || '0'),
+        initial_investment_brl: parseFloat(document.getElementById('amount').value || '0'),
+        created_at: new Date().toISOString(),
+        note: 'PREVIEW LOCAL — não gravado na blockchain'
+      };
+      out.textContent = JSON.stringify(data, null, 2);
     };
-    out.textContent = JSON.stringify(data, null, 2);
-  };
-</script>
+  </script>
+</body>
+</html>
